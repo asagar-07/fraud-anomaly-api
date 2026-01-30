@@ -1,7 +1,15 @@
+# Virtual environment
 .venv/
 .vscode
+# Python  cache
 __pycache__/
-artifacts/
-data/
+
+# Datasets
+data/raw/
+data/processed/
+
+# Artifcats
+artifcats/shared/scaler.joblib
+
 .env
 *.pyc

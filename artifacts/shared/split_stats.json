@@ -1,0 +1,22 @@
+{
+    "overall": {
+        "row_count": 283726,
+        "fraud_count": 473,
+        "fraud_percentage": 0.1667101358352777
+    },
+    "train": {
+        "row_count": 198608,
+        "fraud_count": 366,
+        "fraud_percentage": 0.18428260694433254
+    },
+    "val": {
+        "row_count": 42558,
+        "fraud_count": 55,
+        "fraud_percentage": 0.1292353964002068
+    },
+    "test": {
+        "row_count": 42560,
+        "fraud_count": 52,
+        "fraud_percentage": 0.12218045112781956
+    }
+}

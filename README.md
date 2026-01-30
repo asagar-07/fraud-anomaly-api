@@ -149,3 +149,177 @@ Limitations
 	•	Serves predictions reliably via API
 	•	Applies realistic fraud decision logic
 	•	Includes monitoring and drift awareness
+
+
+-------------
+Dataset: Credit Card Fraud Detection (European cardholders)
+Source: Kaggle
+Target variable: Class (0 = Legitimate, 1 = Fraud)
+
+The dataset contains fully numeric, anonymized transaction features generated via PCA, along with transaction timing and amount.
+
+-------------
+Feature		Type			Description																						Comments
+Time		float			Relative seconds elapsed between this transaction and the first transaction in the dataset		Continuous numeric, preserve ordering for time-based splits
+Amount		float			Transaction amount (raw monetary value)															Continuous numeric, highly right-skewed, tranformed using log1p during preprocess
+V1 – V28	float			Anonymized PCA-transformed features representing transaction characteristics					continuous numeric, treated as independent numerical inputs
+Class		int (binary)	Target label: 0 = legitimate, 1 = fraud															Binary, extremely impalanced (~0.17% fraud), supervised classification and evaluation of anomaly scores
+
+------------
+Data Characteristics
+	•	Total transactions: ~284,807
+	•	Fraud rate: ~0.17%
+	•	Missing values: None
+	•	Categorical features: None
+-----------
+Modeling Considerations
+	•	Accuracy is not a meaningful metric due to class imbalance
+	•	Precision, recall, and PR-AUC are emphasized
+	•	Time-based splits are used to prevent data leakage
+	•	Feature anonymity limits interpretability but is suitable for ML engineering demonstrations	
+
+-----------
+Canonical Feature Order (Model Input)
+
+This model expect features in the following orer after preprocessing:
+[Time, Amount, V1, V2, V3, ....., V28]
+
+--------------------------
+API CONTRACT
+
+Endpoint
+POST /predict
+
+Predicts fraud risk and anomaly score for a single transaction.
+
+REQUEST SCHEMA (INPUT)
+
+Content Type: application/json
+Requried Fields: All input features must be numeric and pre-scaled in the same order as training.
+
+Input/Request Sample:
+{
+  "transaction_id": "string (optional)",
+  "features": [
+    0.0,
+    149.62,
+    -1.359807,
+    -0.072781,
+    2.536346,
+    1.378155,
+    -0.338321,
+    0.462388,
+    0.239599,
+    0.098698,
+    -0.222995,
+    -0.166975,
+    0.622387,
+    -0.066084,
+    -0.580558,
+    0.035386,
+    -0.373003,
+    0.345515,
+    -0.291090,
+    -0.257360,
+    0.753074,
+    -0.022761,
+    0.124458,
+    -0.201823,
+    0.240279,
+    -0.304215,
+    0.368090,
+    -0.176843,
+    0.110507,
+    0.041291
+  ]
+}
+
+Field				Type			Required	Description
+transaction_id		string			No			Optional identifier returned in response
+features			array[float]	Yes			Ordered numerical feature vector
+
+-------------------
+
+Feature Ordering:
+The features array must follow this exact order:
+
+	[Time, Amount, V1, V2, V3, ....., V28]
+
+Requests with incorrect length or non-numeric values will be rejected.
+
+
+RESPONSE SCEHMA (Output):
+
+Successful Response (200 OK)
+{
+  "transaction_id": "xyz-123",
+  "fraud_probability": 0.88,
+  "anomaly_score": 1.45,
+  "is_fraud": true,
+  "is_anomalous": true,
+  "decision": "BLOCK"
+}
+
+Field				Type		Description
+transaction_id		string		Echoed from request if provided
+fraud_probability	float		Probability from supervised classifier
+anomaly_score		float		Reconstruction error from autoencoder
+is_fraud			boolean		Classifier decision based on threshold
+is_anomalous		boolean		Anomaly decision based on AE threshold
+decision			string		One of ALLOW, REVIEW, BLOCK
+
+----------------------------------------
+DECISION LOGIC:
+
+Final decision is derived as:
+	•	BLOCK if (fraud_probability >= fraud_block_threshold) is True
+	•	REVIEW if (fraud_probability >= fraud_review_threshold OR anomaly_score >= anomaly_review_threshold) is True
+	•	ALLOW  Otherwise
+
+Thresholds are configurable and stored as model artifacts.
+
+-------------------------------
+
+Error Responses:
+
+Example 1:
+Invalid Request (422 Unprocessable Entity)
+{
+  "detail": "Invalid feature vector length or non-numeric values"
+}
+
+Example 2:
+Service Not Ready (503 Service Unavailable)
+{
+  "detail": "Model artifacts not loaded"
+}
+
+Input Validation Rules:
+	•	Feature array length must be exactly 30
+	•	All values must be numeric (float-compatible)
+	•	NaNs and infinities are rejected
+	•	Payload size limits enforced
+
+------------------------------
+Time-Based Split Strategy
+
+To simulate real-world fraud detection, data is split chronologically so that model is trained on past transactions only and evaluated on future transactions.
+
+Split Method:
+	1. Data is pre-sorted by Time feature (ascending)
+	2. Split sequentially into;
+		•	Training set: first 70% of transactions
+		•	Validation set: next 15% of transactions
+		•	Test set: final 15% of transactions
+		
+Class Distribution Policy
+	•	Class imbalance (~0.17% fraud) is preserved in validation and test sets
+	•	Any imbalance handling (class-weighted loss) is applied only to the training set
+	•	No oversampling, undersampling, or synthetic data generation is performed on validation or test data		
+	•	Fraud samples are up-weighted relative to legitimate transactions
+	•	Preserves real-world distributions while improving fraud RECALL
+
+Leakage Prevention Rules
+	•	No data from validation or test periods is used during training
+	•	Feature scalers are fit only on training data
+	•	All preprocessing steps are applied consistently across splits using saved artifacts
