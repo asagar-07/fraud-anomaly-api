@@ -1,15 +1,22 @@
+# macOS junk
+.DS_Store
+
 # Virtual environment
 .venv/
+
 .vscode
+
 # Python  cache
 __pycache__/
+*.pyc
 
 # Datasets
 data/raw/
 data/processed/
 
-# Artifcats
-artifcats/shared/scaler.joblib
+# Artifacts
+artifacts/classifier/model.pt
+artifacts/autoencoder/model.pt
+artifacts/shared/scaler.joblib
 
 .env
-*.pyc

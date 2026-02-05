@@ -1,0 +1,6 @@
+{
+  "best_val_recon_mae": 0.45843963626636924,
+  "epochs_ran": 17,
+  "final_train_recon_mae": 0.41012820821671153,
+  "final_val_recon_mae": 0.4600126891462303
+}

@@ -132,7 +132,7 @@ def train_classifier() -> None:
     logger.info("Ingesting data...")
     df = ingest_data(cfg.raw_csv_path)
 
-    logger.info("Preprocessing data...")
+    logger.info("Preprocessing data for Classifier...")
     out = preprocess_data(df)
     X_train = out["X_train_scaled"]
     y_train = out["y_train"]
@@ -190,7 +190,7 @@ def train_classifier() -> None:
 
     train_curve = {"epoch": [], "train_loss": [], "val_pr_auc": []}
 
-    logger.info("Starting training...")
+    logger.info("Starting training for Classifier...")
     for epoch in range(1, cfg.epochs + 1):
         model.train()
         running = 0.0

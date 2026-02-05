@@ -1,0 +1,11 @@
+{
+  "model_type": "Autoencoder",
+  "input_dim": 30,
+  "hidden_dim": [
+    16,
+    8
+  ],
+  "loss_function": "mae",
+  "score_definition": "Mean Absolute Error between input and reconstruction over 30 features",
+  "train_on": "Normal samples only (Class 0)"
+}
