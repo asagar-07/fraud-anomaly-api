@@ -1,0 +1,12 @@
+.venv
+__pycache__
+*.pyc
+.DS_Store
+data
+tests
+scripts
+.git
+.github
+tmp_batch.json
+artifacts/**/train_curve.json
+artifacts/**/metrics.json

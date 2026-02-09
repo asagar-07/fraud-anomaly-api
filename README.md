@@ -7,7 +7,8 @@ It combines:
 	•	A supervised binary classifier to estimate fraud probability
 	•	An unsupervised anomaly detection model to surface unusual transaction behavior
 
-Both models are served via a containerized FastAPI service, designed with enterprise ML practices: reproducibility, monitoring, drift checks, and clear decision policies.
+Both models are served via a containerized FastAPI service, designed with enterprise ML practices: reproducibility, monitoring, drift checks, and clear decision policies
+with strict validation, batch inference, Dockerized deployment and CI-backed testing.
 
 ⸻
 
@@ -70,7 +71,7 @@ Core Endpoints
 	•	GET /health – service readiness & model load status
 	•	GET /version – model version, training timestamp, artifact hash
 	•	POST /predict – single transaction inference
-	•	POST /batch_predict – batch inference
+	•	POST /batch:predict – batch inference
 
 Observability
 	•	GET /metrics – latency, request counts, decision rates
@@ -83,7 +84,8 @@ Example /predict Response
   "anomaly_score": 1.42,
   "is_fraud": true,
   "is_anomalous": true,
-  "decision": "BLOCK"
+  "decision": "BLOCK",
+  ---more---
 }
 
 
@@ -323,3 +325,174 @@ Leakage Prevention Rules
 	•	No data from validation or test periods is used during training
 	•	Feature scalers are fit only on training data
 	•	All preprocessing steps are applied consistently across splits using saved artifacts
+
+--------------------------------
+
+12. Development Workflow (Step-by-Step)
+
+This project was built incrementally using a production-style ML engineering workflow rather than a single notebook.
+
+Day 1 – Data Ingestion & Validation
+	•	Loaded raw dataset from data/raw/creditcard.csv
+	•	Verified:
+	•	expected columns and types
+	•	no missing values
+	•	duplicate rows (deduplicated)
+	•	class imbalance (~0.17% fraud)
+	•	Defined canonical schema assumptions:
+	•	target column
+	•	feature list
+	•	feature order
+
+Artifacts produced:
+	•	dataset statistics
+	•	schema assumptions embedded in code
+
+⸻
+
+Day 2 – Preprocessing & Time-Based Splits
+	•	Applied preprocessing:
+	•	log1p transform for skewed Amount
+	•	feature scaling (StandardScaler)
+	•	Enforced guardrails:
+	•	scaler fit only on training data
+	•	validation/test never rebalanced
+	•	Implemented time-based split:
+	•	70% train / 15% val / 15% test
+	•	chronological ordering by Time
+
+Artifacts produced:
+	•	processed train/val/test datasets
+	•	scaler artifact
+	•	split statistics JSON
+
+⸻
+
+Day 3 – Supervised Fraud Classifier
+	•	Implemented PyTorch MLP classifier
+	•	Used class-weighted loss to address imbalance
+	•	Tracked:
+	•	PR-AUC
+	•	ROC-AUC
+	•	recall, precision, F1 at fixed threshold
+	•	Saved versioned artifacts:
+	•	model.pt
+	•	model_config.json
+	•	metrics.json
+	•	threshold.json
+
+⸻
+
+Day 4 – Unsupervised Anomaly Detection
+	•	Trained autoencoder on predominantly non-fraud data
+	•	Used reconstruction error as anomaly score
+	•	Derived percentile-based thresholds (p95, p99, p995)
+	•	Stored reconstruction statistics as artifacts
+
+⸻
+
+Day 5 – Unified Fraud Scoring Service
+	•	Combined classifier + autoencoder into a single decision engine
+	•	Implemented:
+	•	consistent output contract
+	•	timing instrumentation
+	•	decision flags + reasons
+	•	Added smoke tests for inference correctness
+
+⸻
+
+Day 6 – FastAPI Service
+	•	Built a production-style API:
+	•	/health
+	•	/version
+	•	/predict
+	•	/predict:batch
+	•	Features:
+	•	strict schema validation
+	•	centralized error handling
+	•	per-item batch error isolation
+	•	startup fail-fast if artifacts missing
+	•	Verified via curl and Swagger UI
+
+⸻
+
+Day 7 – Docker & CI
+	•	Containerized the service using Docker
+	•	Added .dockerignore for clean builds
+	•	Implemented GitHub Actions CI:
+	•	unit tests run by default
+	•	integration tests (model-dependent) marked explicitly
+	•	Split tests into:
+	•	unit tests (schema, error handling)
+	•	integration tests (model inference)
+
+⸻-------------------------------------------
+
+13. Testing Strategy
+
+Unit Tests (CI Default)
+	•	Schema validation
+	•	Error handlers
+	•	Request parsing
+	•	No model weights required
+
+Run: 
+	PYTHONPATH=src pytest -q
+
+Integration Tests (Local Only)
+	•	Classifier inference
+	•	Autoencoder inference
+	•	Unified fraud scoring
+
+Requires trained artifacts.
+
+Run:
+	PYTHONPATH=src pytest -q -m integration
+
+⸻-------------------------------------------
+
+14.Running the Service
+
+Local (No Docker)
+	PYTHONPATH=src uvicorn fraud.api.app:app --reload --port 8000
+Visit:
+	http://127.0.0.1:8000/docs
+	http://127.0.0.1:8000/health	
+
+Docker ( requires local model artifacts)
+	docker build -t fraud-anomaly-api:1.0 -f docker/Dockerfile .
+	docker run --rm -p 8000:8000 fraud-anomaly-api:1.0
+
+-----------------------------------------------
+
+15. Repo Structure
+
+.
+├── src/
+│   └── fraud/
+│       ├── data/
+│       ├── models/
+│       ├── training/
+│       ├── inference/
+│       └── api/
+├── artifacts/
+│   ├── classifier/
+│   ├── autoencoder/
+│   └── shared/
+├── tests/
+│   ├── unit/
+│   └── integration/
+├── docker/
+│   └── Dockerfile
+├── .github/workflows/
+├── pytest.ini
+└── README.md
+
+-------------------------------------
+
+15. Future Enhancements
+	•	threshold tuning strategy
+	•	drift monitoring (PSI/KS)
+	•	action levels (ALLOW/REVIEW/BLOCK)
+	•	Prometheus metrics endpoint
+	•	docker-compose for monitoring stack

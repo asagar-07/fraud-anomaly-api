@@ -1,7 +1,8 @@
 from pathlib import Path
 import json
-
 from fraud.inference.classifier_infer import ClassifierArtifacts, ClassifierPredictor
+import pytest
+pytestmark = pytest.mark.integration
 
 def test_predict_proba_smoke():
     # Instantiate artifacts

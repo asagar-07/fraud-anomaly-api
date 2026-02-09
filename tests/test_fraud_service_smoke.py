@@ -1,9 +1,9 @@
 from pathlib import Path
 import json
-import pytest
 import logging
-
 from fraud.inference.fraud_service import FraudScoringService
+import pytest
+pytestmark = pytest.mark.integration
 
 logging.basicConfig(
     level=logging.INFO,

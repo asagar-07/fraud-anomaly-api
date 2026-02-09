@@ -1,9 +1,9 @@
 from pathlib import Path
 import json
 import logging
-
 from fraud.inference.autoencoder_infer import AutoencoderArtifacts, AutoencoderPredictor
-
+import pytest
+pytestmark = pytest.mark.integration
 
 logging.basicConfig(
     level=logging.INFO,
