@@ -20,3 +20,6 @@ artifacts/autoencoder/model.pt
 artifacts/shared/scaler.joblib
 
 .env
+
+#temp_api_test_file
+tmp_batch.json

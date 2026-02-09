@@ -1,7 +1,9 @@
 from __future__ import annotations
 from pathlib import Path
+import torch
+import gc
 from fastapi import FastAPI, status, HTTPException, Depends
-from fraud.api.deps import get_service
+from fraud.api.deps import get_service, teardown_service
 from fraud.api.errors import value_error_handler, unhandled_exception_handler
 from contextlib import asynccontextmanager
 from fraud.inference.fraud_service import FraudScoringService, FraudServiceConfig
@@ -23,13 +25,28 @@ async def lifespan(app: FastAPI):
         app.state.ready = False
         app.state.startup_error = str(e)
     yield
+    #--shutdown--
+    if app.state.service:
+        await app.state.service.close()
     app.state.service = None
+    teardown_service()
+
+    # Forcing Python garbage collection
+    gc.collect()
+
+    # If using GPU, release the memory pool
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+    # If using Apple Silicon (M1/M2/M3)
+    elif torch.backends.mps.is_available():
+        torch.mps.empty_cache()
 
 app = FastAPI(lifespan=lifespan)
-app.add_exception_handler(ValueError, value_error_handler)
-app.add_exception_handler(Exception, unhandled_exception_handler)
+app.add_exception_handler(ValueError, value_error_handler) # rather than @app.exception_handler() as my error hanldlers are centralized and defined in fraud/api/errors.py
+app.add_exception_handler(Exception, unhandled_exception_handler) # rather than @app.exception_handler() as my error hanldlers are centralized and defined in fraud/api/errors.py
 
-@app.get("/health") # return ok if artifacts are loaded successfully, 200 when ready and 503 when not ready (with the error message)
+@app.get("/health") 
 async def health_check():
     """Readiness + Liveness check: 200 only when artifacts loaded successfully, else 503"""
     if getattr(app.state, "ready", False):
@@ -39,7 +56,7 @@ async def health_check():
     err = getattr(app.state, "startup_error", "Unknown startup error")
     raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Fraud-Scoring Service Application failed to load. Error: {err}")
         
-@app.get("/version") # return versions pulled all pre-saved JSON configs
+@app.get("/version") 
 async def get_version(service: FraudScoringService = Depends(get_service)):
     """ Report versions from artifact metadata loaded by the service at startup"""
     preprocessor_ver = getattr(service.cfg, "preprocessor_version", "unknown")
@@ -70,13 +87,12 @@ async def single_predict(input: SinglePredictRequest, service: FraudScoringServi
     }
     
 @app.post("/predict:batch") 
-# Batch request: list of unified responses (per row), with per-item erros if any captured for list of featured dicts
-# Batch guardrails, max_batch_size = 256, reject with 413 or 422 if larger than 256, each item should have features dict
+# Batch request: list of unified responses (per row), with per-item errors if any captured for list of featured dicts
+# Batch guardrails, max_batch_size = 256, reject with 422 ERROR if larger than 256, each item should have features dict
 # Missing, extra, non-numeric feature keys are already rejected by my serivce ( ValueError)
 async def batch_predict(input: BatchPredictRequest, service: FraudScoringService = Depends(get_service)) -> BatchPredictResponse:
-    maximum = len(input.items)
-    if maximum > 256:
-        raise ValueError(f"Batch size cannot exceed 256, found {maximum} instead!")
+    if len(input.items) > 256:
+        raise ValueError(f"Batch size cannot exceed 256, found {len(input.items)} instead!")
 
     succeeded = 0
     failed = 0
@@ -93,17 +109,17 @@ async def batch_predict(input: BatchPredictRequest, service: FraudScoringService
                 )
             succeeded += 1
         except ValueError as e:
-            failed += 1
             item_results.append(ItemResult(
                 item_id = item.item_id,
                 result = None, 
                 error=ErrorDetail(type="ValidationError", message=str(e))
                 )
                 )
+            failed += 1
             #errors[key] = {"error": { "type": "ValidationError", "message": str(e)}}
     
     return {
-        "request_id": input.request_id if input.request_id is not None else None,
+        "request_id": input.request_id,
         "results": item_results,
         "summary": {"total": len(input.items), "succeeded": succeeded, "failed": failed}
     }

@@ -27,3 +27,6 @@ def get_service(request: Request) -> FraudScoringService:
     if service is not None:
         return service
     return _build_service()
+
+def teardown_service():
+    _build_service.cache_clear()
