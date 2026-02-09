@@ -266,6 +266,7 @@ def train_classifier() -> None:
     model_config_path = artifacts_path / "model_config.json"
     model_config = {
         "model_type": "FraudMLP",
+        "model_version": "1.0.0",
         "input_dim": cfg.input_dim,
         "hidden_dim": [64, 32],
         "dropout": [0.3, 0.2],

@@ -1,6 +1,5 @@
 from pathlib import Path
 import json
-import pandas as pd
 import logging
 
 from fraud.inference.autoencoder_infer import AutoencoderArtifacts, AutoencoderPredictor

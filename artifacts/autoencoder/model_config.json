@@ -1,5 +1,6 @@
 {
   "model_type": "Autoencoder",
+  "model_version": "1.0.0",
   "input_dim": 30,
   "hidden_dim": [
     16,

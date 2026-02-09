@@ -1,6 +1,5 @@
 from pathlib import Path
 import json
-import pandas as pd
 
 from fraud.inference.classifier_infer import ClassifierArtifacts, ClassifierPredictor
 

@@ -4,7 +4,7 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 from fraud.inference.classifier_infer import ClassifierPredictor, ClassifierArtifacts
 from fraud.inference.autoencoder_infer import AutoencoderPredictor, AutoencoderArtifacts
 
@@ -159,7 +159,7 @@ class FraudScoringService:
 
         # Versions (prefer config, fall back to predictor output is present)
         cls_ver = (
-            self.classifier_model_config.get("model_verision")
+            self.classifier_model_config.get("model_version")
             or self.classifier_model_config.get("version")
             or "1.0.0"
         )

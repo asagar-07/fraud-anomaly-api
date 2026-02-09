@@ -286,6 +286,7 @@ def train_autoencoder() -> None:
     # save JSON artifacts 
     model_config = {
         "model_type": "Autoencoder",
+        "model_version": "1.0.0",
         "input_dim": cfg.input_dim,
         "hidden_dim": cfg.hidden_dims,
         "loss_function": cfg.loss,
